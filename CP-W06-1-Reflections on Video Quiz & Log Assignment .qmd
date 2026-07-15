@@ -1,0 +1,579 @@
+---
+title: "M06: Reflection on Logistic Fundamentals"
+author: "Kevin Bachez"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    toc-expand: 1
+    toc-location: right-body
+    toc-title: "Contents"
+    number-sections: true
+    code-fold: show
+    code-tools: true
+    code-overflow: wrap
+    theme: cosmo
+    highlight-style: github
+    df-print: paged
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+  freeze: true
+---
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+tidymodels_prefer()
+```
+
+# Reflection on Logistic Regression Fundamentals
+
+# Introduction
+
+This report summarizes what I learned from the Week 6 Assignment Review lecture, including Video Quiz Questions 11–23. The lecture strengthened my understanding of odds, odds ratios, statistical testing, and logistic regression. These concepts are important because they help explain how marketers predict customer behavior using data and evaluate whether relationships between variables are statistically significant.
+
+# Video Quiz Review
+
+# Q11 – What Is an Odds Ratio?
+
+## Prompt
+
+Compute the odds ratio comparing Gold and Bronze loyalty tier customers. Determine whether Gold customers have higher or lower odds of responding to the marketing campaign.
+
+## Response
+
+An odds ratio (OR) compares the odds of an event occurring between two different groups. It is calculated by dividing the odds of one group by the odds of another group. An odds ratio greater than 1 indicates that the first group has higher odds of the event occurring, while an odds ratio less than 1 indicates lower odds. An odds ratio equal to 1 means there is no relationship between the groups.
+
+In this assignment, the odds ratio compares the odds of customers responding to a marketing campaign for the Gold loyalty tier versus the Bronze loyalty tier.
+
+## Code
+
+```{r eval=FALSE}
+tier_summary <- mail_data |>
+  group_by(loyalty_tier) |>
+  summarise(
+    yes = sum(responded == "yes"),
+    no = sum(responded == "no"),
+    odds = yes / no
+  )
+
+gold_odds <- tier_summary |>
+  filter(loyalty_tier == "Gold") |>
+  pull(odds)
+
+bronze_odds <- tier_summary |>
+  filter(loyalty_tier == "Bronze") |>
+  pull(odds)
+
+OR <- gold_odds / bronze_odds
+OR
+```
+
+## Key Takeaway
+
+The odds ratio measures the strength of the relationship between two groups. Values greater than one indicate higher odds, values less than one indicate lower odds, and a value of one indicates no association.
+
+---
+
+# Q12 – Asymmetry and Log(Odds Ratio)
+
+## Prompt
+
+Compute the log odds ratio, compare it with the reverse odds ratio, and explain why a log odds ratio of zero represents no relationship.
+
+## Response
+
+Odds ratios are asymmetric because values greater than one extend to infinity, while values below one are compressed between zero and one. Taking the logarithm creates a symmetric scale centered at zero.
+
+If the odds ratio equals one, the log odds ratio equals zero, indicating no relationship. Positive log odds ratios indicate positive associations, while negative log odds ratios indicate negative associations.
+
+## Code
+
+```{r eval=FALSE}
+log(OR)
+
+OR_reverse <- bronze_odds / gold_odds
+
+log(OR_reverse)
+```
+
+## Key Takeaway
+
+Using the logarithm makes odds ratios easier to interpret because positive and negative relationships become equally spaced around zero.
+
+---
+
+# Q13 – Effect Size Interpretation
+
+## Prompt
+
+Compare the odds ratios for each loyalty tier relative to Bronze and identify which tier has the strongest association with customer response.
+
+## Response
+
+The magnitude of an odds ratio reflects the strength of the relationship between a predictor and an outcome. Larger odds ratios indicate stronger effects, while values close to one indicate weaker relationships.
+
+Comparing each loyalty tier with Bronze allows marketers to determine which customer segment is most likely to respond to a campaign. This information helps businesses prioritize promotional efforts toward customers with the greatest likelihood of responding.
+
+## Code
+
+```{r eval=FALSE}
+tier_summary |>
+  mutate(
+    OR_vs_bronze = odds / bronze_odds,
+    log_OR = log(OR_vs_bronze)
+  ) |>
+  arrange(desc(abs(log_OR)))
+```
+
+## Key Takeaway
+
+Odds ratios help measure effect size and identify which customer segments have the strongest relationship with the marketing outcome.
+
+---
+
+# Q14 – Fisher's Exact Test
+
+## Prompt
+
+Use Fisher's Exact Test to determine whether the difference in response rates between Gold and Bronze customers is statistically significant.
+
+## Response
+
+Fisher's Exact Test evaluates whether two categorical variables are statistically associated. It is especially useful when sample sizes are small or when expected frequencies within the contingency table are low.
+
+The p-value determines whether the observed relationship is statistically significant. If the p-value is less than 0.05, there is sufficient evidence to conclude that the difference between Gold and Bronze customers is unlikely to have occurred by chance.
+
+## Code
+
+```{r eval=FALSE}
+gold_bronze <- mail_data |>
+  filter(loyalty_tier %in% c("Gold", "Bronze"))
+
+ct <- table(
+  gold_bronze$loyalty_tier,
+  gold_bronze$responded
+)
+
+ct
+
+fisher.test(ct)
+```
+
+## Key Takeaway
+
+Fisher's Exact Test is the preferred statistical test when analyzing categorical data with relatively small sample sizes.
+
+---
+
+# Q15 – Chi-Square Test
+
+## Prompt
+
+Perform a chi-square test on the contingency table and compare the results with Fisher's Exact Test.
+
+## Response
+
+The chi-square test compares the observed frequencies with the frequencies expected if there were no relationship between the variables. A significant p-value indicates that the observed differences are unlikely to be due to random chance.
+
+For larger datasets, the chi-square test is generally preferred because it is computationally efficient and produces results similar to Fisher's Exact Test when sample sizes are sufficiently large.
+
+## Code
+
+```{r eval=FALSE}
+chisq.test(ct)
+```
+
+## Key Takeaway
+
+The chi-square test evaluates whether two categorical variables are associated and is most appropriate when analyzing larger datasets.
+
+# Q16 – Wald Test Concept
+
+## Prompt
+
+Explain what the Wald Test measures and describe how it relates to identifying important predictors in logistic regression.
+
+## Response
+
+The Wald Test measures whether a predictor's coefficient is significantly different from zero. It determines how many standard deviations a coefficient is away from zero. If a coefficient is far from zero, the predictor is considered statistically significant because it has a meaningful effect on the outcome.
+
+The Wald Test is commonly used in logistic regression to evaluate individual predictors. Lasso regression has a similar purpose because it shrinks unimportant coefficients toward zero, helping remove variables that contribute little to prediction.
+
+There is no single statistical test that is always the best. Fisher's Exact Test is useful for small samples, the chi-square test is preferred for large datasets, and the Wald Test is used to evaluate predictors within logistic regression models.
+
+## Key Takeaway
+
+The Wald Test helps determine whether individual predictors significantly contribute to a logistic regression model.
+
+---
+
+# Q17 – Connecting Odds Ratios to Logistic Regression
+
+## Prompt
+
+Explain how logistic regression coefficients represent log odds ratios and interpret the meaning of a positive coefficient.
+
+## Response
+
+In logistic regression, each coefficient represents the change in the log odds of the outcome for a one-unit increase in the predictor while holding the other variables constant.
+
+If the coefficient for `freq_12mo` is positive, customers who purchase more frequently have higher odds of responding to the direct-mail campaign. As purchase frequency increases, the probability of responding also increases.
+
+Normalizing predictors places all variables on the same scale. This makes it easier to compare coefficients across variables with different units, such as income measured in dollars and purchase frequency measured as counts.
+
+## Key Takeaway
+
+Positive coefficients increase the odds of the outcome, while negative coefficients decrease the odds.
+
+---
+
+# Q18 – Linear vs. Logistic Regression
+
+## Prompt
+
+Compare linear regression and logistic regression, and explain why logistic regression is appropriate for binary outcomes.
+
+## Response
+
+Linear regression predicts continuous numerical values, whereas logistic regression predicts probabilities for binary outcomes such as yes or no responses.
+
+A straight line is not appropriate for binary outcomes because it can produce predicted values below zero or above one, which are impossible probabilities. Logistic regression uses the sigmoid function to ensure every predicted value remains between zero and one.
+
+In the direct-mail dataset, a linear regression model could predict probabilities greater than one for customers with very high incomes or purchase frequencies. Logistic regression avoids this problem by restricting predictions to valid probabilities.
+
+## Key Takeaway
+
+Logistic regression should always be used when predicting binary outcomes because it produces valid probabilities.
+
+---
+
+# Q19 – The S-Shaped Logistic Curve
+
+## Prompt
+
+Use the logistic (sigmoid) function to explain how logistic regression converts a linear predictor into a probability.
+
+## Response
+
+The logistic regression model uses the sigmoid function to convert a linear predictor into a probability between zero and one.
+
+The function `plogis()` performs this transformation. When the linear predictor equals zero, the predicted probability equals 0.50 because the model is equally likely to predict either outcome.
+
+In marketing, the linear predictor combines information such as customer income, purchase frequency, and recency into a single score that is then converted into the probability that the customer will respond.
+
+## Code
+
+```{r eval=FALSE}
+plogis(-3)
+
+plogis(0)
+
+plogis(3)
+```
+
+## Key Takeaway
+
+The sigmoid curve guarantees that every predicted probability falls between zero and one.
+
+---
+
+# Q20 – Maximum Likelihood vs. Least Squares
+
+## Prompt
+
+Explain the difference between least squares estimation and maximum likelihood estimation in logistic regression.
+
+## Response
+
+Linear regression estimates model parameters by minimizing the sum of squared residuals. Logistic regression instead uses maximum likelihood estimation because the outcome variable is binary.
+
+Maximum likelihood finds the coefficients that make the observed responses most likely. Rather than minimizing prediction errors, it estimates the probability of observing the actual customer responses given the model.
+
+Model performance is typically evaluated using measures such as accuracy, ROC curves, AUC, precision, recall, and confusion matrices instead of traditional residual plots.
+
+## Key Takeaway
+
+Logistic regression is estimated using maximum likelihood because binary outcomes do not satisfy the assumptions required for least squares regression.
+
+---
+
+# Q21 – Predicting Probability vs. Class
+
+## Prompt
+
+Explain the difference between predicted probabilities and predicted class labels, and discuss why the default threshold of 0.50 may not be appropriate.
+
+## Response
+
+Logistic regression first predicts a probability of the positive outcome before assigning a class label. The `.pred_yes` column contains predicted probabilities, while `.pred_class` contains the final predicted category.
+
+Since only about 4.7% of customers respond, using the default threshold of 0.50 would classify nearly every customer as a non-responder. Lower thresholds are often more appropriate because they identify more potential responders for marketing campaigns.
+
+The best threshold depends on the business objective and should be evaluated using model performance metrics such as precision, recall, F1-score, or AUC.
+
+## Code
+
+```{r eval=FALSE}
+ggplot(preds, aes(x = .pred_yes, fill = responded)) +
+  geom_histogram(
+    bins = 40,
+    alpha = 0.7,
+    position = "identity"
+  ) +
+  labs(
+    title = "Distribution of Predicted Probabilities",
+    x = "Predicted Probability",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+## Key Takeaway
+
+Predicted probabilities should be converted into class labels using a threshold that matches the business objective.
+
+---
+
+# Q22 – Wald Test and Variable Selection
+
+## Prompt
+
+Explain how Lasso regression and the Wald Test help identify meaningful predictors in a logistic regression model.
+
+## Response
+
+Lasso regression automatically shrinks less important coefficients toward zero. Variables with coefficients equal to zero contribute little to prediction and are effectively removed from the model.
+
+This process serves a similar purpose to the Wald Test because both methods identify predictors that meaningfully contribute to the logistic regression model.
+
+The sign of the `freq_12mo` coefficient indicates the direction of the relationship. A positive coefficient means that more frequent purchases increase the odds of responding to the campaign, while a negative coefficient would indicate the opposite.
+
+## Code
+
+```{r eval=FALSE}
+mail_fit |>
+  extract_fit_parsnip() |>
+  tidy() |>
+  filter(term != "(Intercept)") |>
+  arrange(desc(abs(estimate)))
+```
+
+## Key Takeaway
+
+Lasso improves model performance by selecting only the predictors that contribute meaningful information.
+
+---
+
+# Q23 – From Logs to Logistic Regression
+
+## Prompt
+
+Explain how probabilities, odds, odds ratios, log odds, and logistic regression are connected and how they are used to predict customer responses.
+
+## Response
+
+The concepts from this module build upon one another in a logical sequence. Probabilities are first converted into odds so that positive outcomes can be compared with negative outcomes. Odds are then compared using odds ratios to measure the strength of relationships between groups. Taking the logarithm of the odds creates a symmetric scale that can be modeled using a linear equation. Logistic regression then converts the linear predictor back into a probability through the sigmoid function.
+
+For the direct-mail campaign, a predicted probability of **0.08** means the model estimates there is an **8% chance** that a particular customer will respond to the marketing campaign.
+
+## Key Takeaway
+
+Understanding probabilities, odds, odds ratios, and log odds provides the foundation for interpreting and applying logistic regression models.
+
+---
+
+# Overall Reflection
+
+This week's assignment strengthened my understanding of logistic regression and its applications in marketing analytics. I learned how probabilities are transformed into odds and log odds, how odds ratios measure relationships between groups, and how statistical tests determine whether those relationships are significant. I also gained a better understanding of logistic regression coefficients, predicted probabilities, and variable selection methods such as Lasso regression. These concepts provide an important foundation for building predictive models that support data-driven marketing decisions.
+
+# Log Assignment
+
+# L.1 – Dollar to Log
+
+## Prompt
+
+Convert an income of $233,070 to both the natural logarithm and the base-10 logarithm, then explain why the recipe uses base 10.
+
+## Response
+
+The customer has an income of **$233,070**. This value can be transformed using either the natural logarithm or the base-10 logarithm. Both transformations reduce the effect of large income values and make the data more suitable for statistical modeling.
+
+The recipe uses **base = 10** because it is easier to interpret in business and marketing settings. Every one-unit increase on the log10 scale represents a tenfold increase in the original dollar amount.
+
+## Code
+
+```{r eval=FALSE}
+income <- 233070
+
+# Natural log
+log(income)
+
+# Base-10 log
+log10(income)
+
+# Equivalent base-10 calculation
+log(income, base = 10)
+```
+
+## Key Takeaway
+
+Logarithmic transformations reduce skewness and make highly variable income data easier to analyze.
+
+---
+
+# L.2 – Log Back to Dollar (Median and Mean)
+
+## Prompt
+
+Convert the log-scale median and mean back to dollars using the exponential function, and explain why the mean is larger than the median.
+
+## Response
+
+The exponential function (`exp()`) reverses the log transformation by converting log-scale values back into dollars.
+
+The median income is calculated using `exp(10.8)`, while the mean income uses the formula:
+
+$$
+\exp\left(10.8+\frac{0.6^2}{2}\right)
+$$
+
+The mean is larger than the median because income follows a positively skewed log-normal distribution. A relatively small number of high-income customers increase the average more than the median.
+
+## Code
+
+```{r eval=FALSE}
+median_income <- exp(10.8)
+median_income
+
+mean_income <- exp(10.8 + (0.6^2 / 2))
+mean_income
+```
+
+## Key Takeaway
+
+The exponential function returns values to their original dollar scale after a logarithmic transformation.
+
+---
+
+# L.3 – Geometric Standard Deviation
+
+## Prompt
+
+Compute the geometric standard deviation and use it to estimate the typical income range for customers.
+
+## Response
+
+The geometric standard deviation measures variability on a multiplicative scale rather than an additive scale. This is appropriate for income because income follows a log-normal distribution.
+
+Using the geometric standard deviation provides a realistic range of values surrounding the median customer income.
+
+## Code
+
+```{r eval=FALSE}
+gsd <- exp(0.6)
+gsd
+
+median_income <- exp(10.8)
+
+lower_bound <- median_income / gsd
+upper_bound <- median_income * gsd
+
+lower_bound
+upper_bound
+```
+
+## Key Takeaway
+
+The geometric standard deviation describes the typical spread of log-normal data by multiplying and dividing rather than adding and subtracting.
+
+---
+
+# L.4 – Confirm with Real Data
+
+## Prompt
+
+Compare the theoretical income values with the observed values in `mail_data`, create a `log_income` variable, and explain the back-transformed results.
+
+## Response
+
+The theoretical values from the log-normal distribution should be close to the observed values in the `mail_data` dataset. Small differences are expected because the dataset is only a sample rather than the entire population.
+
+Creating a new `log_income` variable allows the transformed values to be summarized and compared with the original income values. Applying the exponential function converts the logarithmic values back into approximately the original dollar amounts.
+
+## Code
+
+```{r eval=FALSE}
+# Step 1: median and mean of income
+
+mail_data |>
+  summarise(
+    median_income = median(income, na.rm = TRUE),
+    mean_income = mean(income, na.rm = TRUE)
+  )
+
+# Step 2: create log_income
+
+mail_data |>
+  mutate(log_income = log(income)) |>
+  summarise(
+    median_log_income = median(log_income, na.rm = TRUE),
+    mean_log_income = mean(log_income, na.rm = TRUE)
+  )
+
+# Step 3: back-transform
+
+mail_data |>
+  mutate(log_income = log(income)) |>
+  summarise(
+    exp_median = exp(median(log_income, na.rm = TRUE)),
+    exp_mean = exp(mean(log_income, na.rm = TRUE))
+  )
+```
+
+## Key Takeaway
+
+The empirical values should be similar to the theoretical values, although small differences occur because the dataset represents a random sample.
+
+---
+
+# L.5 – Base 10 vs. Natural Log
+
+## Prompt
+
+Compare natural logarithms and base-10 logarithms, and explain why the choice of logarithm base has little effect after normalization.
+
+## Response
+
+Natural logarithms and base-10 logarithms differ only by a constant scaling factor. Both preserve the ordering of observations and contain the same information.
+
+Because `step_normalize()` standardizes each predictor after the log transformation, the choice of logarithm base has almost no effect on the final predictive model.
+
+## Code
+
+```{r eval=FALSE}
+library(tibble)
+library(dplyr)
+
+tibble(
+  income = c(10000, 100000, 1000000)
+) |>
+  mutate(
+    log_natural = log(income),
+    log_base10 = log10(income),
+    ratio = log_natural / log_base10
+  )
+```
+
+## Key Takeaway
+
+Natural logarithms and base-10 logarithms differ only by the constant **log(10) ≈ 2.303**. After normalization, either transformation produces essentially the same modeling results.
+
+---
+
+# Summary
+
+The Log Assignments helped me understand why logarithmic transformations are widely used in marketing analytics. I learned how to convert income values to logarithms, reverse the transformation with the exponential function, interpret the geometric standard deviation, compare theoretical and empirical values, and understand why the choice of logarithm base has little impact after normalization. These concepts are important because they improve predictive modeling by reducing skewness and making variables easier to interpret.
